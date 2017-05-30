@@ -2,6 +2,7 @@
 
 import os
 import struct
+import sys
 
 import numpy as np
 
@@ -47,6 +48,11 @@ def read_pot_in_directory(pot_dirpath):
             strokes = []
             stroke = []
 
+            xmin = sys.maxsize
+            ymin = sys.maxsize
+
+            xmax = -sys.maxsize
+            ymax = -sys.maxsize
 
             while True:
                 x, y = np.fromfile(f, dtype='int16', count=2)
@@ -56,17 +62,42 @@ def read_pot_in_directory(pot_dirpath):
                     strokes.append(stroke)
                     stroke = []
                 else:
-                    stroke.append((x / 10000 ,y / 10000))
+                    stroke.append((x, y))
+                    xmin = min(xmin, x)
+                    ymin = min(ymin, y)
+
+                    xmax = max(xmax, x)
+                    ymax = max(ymax, y)
+
+            height = ymax - ymin
+            width = xmax - xmin
+
+            longer_side = max(height, width)
+
+            #print('h: {}, w: {}, x: {}-{}, y: {}-{}'.format(height, width, xmin, xmax, ymin, ymax))
+
+            def normalize_stroke(xmin, ymin, longer_side, stroke):
+                def normalize_point(xmin, ymin, longer_side, point):
+                    if len(point) < 2:
+                        return point
+                    oldx, oldy = point
+
+                    x = (oldx - xmin) / longer_side - 0.5
+                    y = (oldy - ymin) / longer_side - 0.5
+
+                    return (x, y)
+
+                return [normalize_point(xmin, ymin, longer_side, point) for point in stroke]
+            strokes = [normalize_stroke(xmin, ymin, longer_side, stroke) for stroke in strokes]
 
             yield strokes, tagcode
-            #print(min_x, max_x, min_y, max_y)
 
     for file_name in os.listdir(pot_dirpath):
         if file_name.endswith('.pot'):
             file_path = os.path.join(pot_dirpath, file_name)
             with open(file_path, 'rb') as f:
-                for bitmap, tagcode in samples(f):
-                    yield bitmap, tagcode
+                for strokes, tagcode in samples(f):
+                    yield strokes, tagcode
 
 
 def tagcode_to_unicode(tagcode):
