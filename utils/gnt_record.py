@@ -6,6 +6,7 @@ import skimage.io as io
 IMAGE_HEIGHT = 128
 IMAGE_WIDTH = 128
 IMAGE_DEPTH = 1
+BATCH_SIZE = 256
 
 tfrecords_filename = "hwdb1.1.tfrecords"
 
@@ -52,15 +53,14 @@ def read_and_decode(filename_queue):
                                            target_width=IMAGE_WIDTH)
 
 
-
     images, labels = tf.train.shuffle_batch( [resized_image, label],
-                                                 batch_size=2,
+                                                 batch_size=BATCH_SIZE,
                                                  capacity=30,
                                                  num_threads=2,
                                                  shapes=[(IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_DEPTH), [1]],
                                                  min_after_dequeue=10)
 
-    return images, labels
+    return images, tf.reshape(labels, [BATCH_SIZE])
 
 
 def main():
