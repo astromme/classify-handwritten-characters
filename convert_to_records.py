@@ -15,7 +15,7 @@ from utils import read_pot_in_directory, tagcode_to_unicode
 
 hyper_params = {
     'max_seq_length' : 200,
-    'input_samples' : 1000000,
+    'input_samples' : 10000,
     'max_output_classes' : 10000,
 }
 
@@ -125,7 +125,7 @@ def write_tf_records():
                 'label': tf.train.Feature(
                     int64_list=tf.train.Int64List(value=[label])),
                 'points': tf.train.Feature(
-                    int64_list=tf.train.Int64List(value=points.astype("int64"))),
+                    float_list=tf.train.FloatList(value=points.astype("float"))),
         }))
         # use the proto object to serialize the example to a string
         serialized = example.SerializeToString()
