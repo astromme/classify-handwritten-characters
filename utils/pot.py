@@ -1,35 +1,9 @@
 #!/usr/bin/env python3
 
 import os
-import struct
 import sys
 
 import numpy as np
-
-def read_gnt_in_directory(gnt_dirpath):
-    def samples(f):
-        header_size = 10
-
-        # read samples from f until no bytes remaining
-        while True:
-            header = np.fromfile(f, dtype='uint8', count=header_size)
-            if not header.size: break
-
-            sample_size = header[0] + (header[1]<<8) + (header[2]<<16) + (header[3]<<24)
-            tagcode = header[5] + (header[4]<<8)
-            width = header[6] + (header[7]<<8)
-            height = header[8] + (header[9]<<8)
-            assert header_size + width*height == sample_size
-
-            bitmap = np.fromfile(f, dtype='uint8', count=width*height).reshape((height, width))
-            yield bitmap, tagcode
-
-    for file_name in os.listdir(gnt_dirpath):
-        if file_name.endswith('.gnt'):
-            file_path = os.path.join(gnt_dirpath, file_name)
-            with open(file_path, 'rb') as f:
-                for bitmap, tagcode in samples(f):
-                    yield bitmap, tagcode
 
 def read_pot_in_directory(pot_dirpath):
     def samples(f):
@@ -98,13 +72,6 @@ def read_pot_in_directory(pot_dirpath):
             with open(file_path, 'rb') as f:
                 for strokes, tagcode in samples(f):
                     yield strokes, tagcode
-
-
-def tagcode_to_unicode(tagcode):
-    return struct.pack('>H', tagcode).decode('gb2312')
-
-def unicode_to_tagcode(tagcode_unicode):
-    return struct.unpack('>H', tagcode_unicode.encode('gb2312'))[0]
 
 
 def main():
