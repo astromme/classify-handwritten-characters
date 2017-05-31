@@ -1,3 +1,4 @@
 pypng
 svgwrite
 tqdm
+scikit-image
