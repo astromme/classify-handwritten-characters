@@ -2,6 +2,7 @@ import tensorflow as tf
 from utils.gnt_record import read_and_decode, BATCH_SIZE
 import time
 import sys
+import numpy
 
 WORK_DIRECTORY = 'data'
 IMAGE_SIZE = 128
@@ -171,6 +172,15 @@ with tf.Session()  as sess:
             epoch = float(step) * BATCH_SIZE / train_size
             print('Step {} of {} (batch {}), {:.1f} ms per step'.format(step, num_steps, epoch, step_time))
             print('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
+
+            test_images, test_labels = sess.run([test_images_batch_normalized, test_labels_batch])
+
+            batch_predictions = sess.run(eval_prediction,
+                                         feed_dict={test_images_batch_normalized: test_images})
+
+
+            print('test error: %.1f%%' % error_rate(batch_predictions, test_labels))
+
             # print('Minibatch error: %.1f%%' % error_rate(predictions, batch_labels))
             # print('Validation error: %.1f%%' % error_rate(
             #     eval_in_batches(validation_data, sess), validation_labels))
