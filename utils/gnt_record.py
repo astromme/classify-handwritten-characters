@@ -5,7 +5,9 @@ import tensorflow as tf
 IMAGE_HEIGHT = 128
 IMAGE_WIDTH = 128
 IMAGE_DEPTH = 1
-BATCH_SIZE = 256
+BATCH_SIZE = 20
+NUM_EPOCHS = 1
+NUM_SAMPLES = 50000
 
 tfrecords_filename = "hwdb1.1.tfrecords"
 
@@ -68,7 +70,7 @@ def main():
         labels = f.readlines()
 
     filename_queue = tf.train.string_input_producer(
-        [tfrecords_filename], num_epochs=10)
+        [tfrecords_filename], num_epochs=NUM_EPOCHS)
 
     # Even when reading in multiple threads, share the filename
     # queue.
@@ -84,30 +86,28 @@ def main():
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
 
-        # Let's read off 3 batches just for example
-        for i in range(3):
-
+        num_steps = NUM_EPOCHS*(NUM_SAMPLES//BATCH_SIZE)
+        for step in range(num_steps):
+            step += 1
             img, label = sess.run([image_queue, label_queue])
-            print(img[0, :, :, :].shape)
+            print("step {} of {}".format(step, num_steps))
 
-            label.shape = 2
-
-            print('current batch')
-
-            # We selected the batch size of two
-            # So we should get two image pairs in each batch
-            # Let's make sure it is random
-
-            print(labels[label[0]])
-
-            io.imshow(img[0, :, :, :].reshape([128, 128]))
-            io.show()
-
-
-            print(labels[label[1]])
-
-            io.imshow(img[1, :, :, :].reshape([128, 128]))
-            io.show()
+            # print('current batch')
+            #
+            # # We selected the batch size of two
+            # # So we should get two image pairs in each batch
+            # # Let's make sure it is random
+            #
+            # print(labels[label[0]])
+            #
+            # io.imshow(img[0, :, :, :].reshape([128, 128]))
+            # io.show()
+            #
+            #
+            # print(labels[label[1]])
+            #
+            # io.imshow(img[1, :, :, :].reshape([128, 128]))
+            # io.show()
 
         coord.request_stop()
         coord.join(threads)

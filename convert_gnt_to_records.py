@@ -13,6 +13,8 @@ import tensorflow as tf
 import utils.gnt
 import utils.tagcode
 
+import random
+
 hyper_params = {
     'image_width' : 28,
     'image_height' : 28,
@@ -82,7 +84,8 @@ def write_tf_records():
         for key in label_keys:
             f.write((key + '\n').encode('utf-8'))
 
-    writer = tf.python_io.TFRecordWriter("hwdb1.1.tfrecords")
+    train_writer = tf.python_io.TFRecordWriter("hwdb1.1.train.tfrecords")
+    test_writer = tf.python_io.TFRecordWriter("hwdb1.1.test.tfrecords")
 
     def write_example(writer, bitmap, label):
         # construct the Example proto boject
@@ -100,7 +103,10 @@ def write_tf_records():
     # iterate over each example
     # wrap with tqdm for a progress bar
     for bitmap, label in tqdm(samples):
-        write_example(writer, bitmap, label)
+        if random.random() < 0.7:
+            write_example(train_writer, bitmap, label)
+        else:
+            write_example(test_writer, bitmap, label)
 
 
 

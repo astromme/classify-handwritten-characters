@@ -10,7 +10,6 @@ PIXEL_DEPTH = 255
 SEED = 66478  # Set to None for random seed.
 NUM_EPOCHS = 10
 EVAL_FREQUENCY = 1  # Number of steps between evaluations.
-
 train_size = 50000
 
 def data_type():
@@ -21,19 +20,22 @@ with open('label_keys.list') as f:
 
 NUM_LABELS = len(labels)
 
-tfrecords_filename = "hwdb1.1.tfrecords"
-filename_queue = tf.train.string_input_producer(
-    [tfrecords_filename], num_epochs=10)
+tfrecords_train_filename = "hwdb1.1.train.tfrecords"
+tfrecords_test_filename = "hwdb1.1.test.tfrecords"
+train_filename_queue = tf.train.string_input_producer(
+    [tfrecords_train_filename], num_epochs=NUM_EPOCHS)
+
+test_filename_queue = tf.train.string_input_producer(
+    [tfrecords_train_filename], num_epochs=1)
 
 # Even when reading in multiple threads, share the filename
 # queue.
-images_batch, labels_batch = read_and_decode(filename_queue)
-label_one_hot = tf.one_hot(labels_batch, len(labels))
+images_batch, labels_batch = read_and_decode(train_filename_queue)
+test_images_batch, test_labels_batch = read_and_decode(test_filename_queue)
 
 # simple model
 images_batch_normalized = images_batch / PIXEL_DEPTH - 0.5
-print(images_batch)
-print(images_batch_normalized)
+test_images_batch_normalized = test_images_batch / PIXEL_DEPTH - 0.5
 
 # The variables below hold all the trainable weights. They are passed an
 # initial value which will be assigned when we call:
@@ -106,7 +108,7 @@ def model(data, train=False):
 
 
 # Training computation: logits + cross-entropy loss.
-logits = model(images_batch_normalized, True)
+logits = model(images_batch_normalized, train=True)
 loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
   labels=labels_batch, logits=logits))
 
@@ -135,14 +137,18 @@ optimizer = tf.train.MomentumOptimizer(learning_rate,
 train_prediction = tf.nn.softmax(logits)
 
 # Predictions for the test and validation, which we'll compute less often.
-#eval_prediction = tf.nn.softmax(model(eval_data))
-
-
-
+eval_prediction = tf.nn.softmax(model(test_images_batch_normalized))
 
 # The op for initializing the variables.
 init_op = tf.group(tf.global_variables_initializer(),
                    tf.local_variables_initializer())
+
+def error_rate(predictions, labels):
+  """Return the error rate based on dense predictions and sparse labels."""
+  return 100.0 - (
+      100.0 *
+      numpy.sum(numpy.argmax(predictions, 1) == labels) /
+      predictions.shape[0])
 
 with tf.Session()  as sess:
     sess.run(init_op)
@@ -151,22 +157,20 @@ with tf.Session()  as sess:
     threads = tf.train.start_queue_runners(coord=coord)
 
     start_time = time.time()
-    step = 0
-    while True:
+    num_steps = NUM_EPOCHS*(train_size//BATCH_SIZE)
+    for step in range(num_steps):
         step += 1
         sess.run(optimizer)
 
         if step % EVAL_FREQUENCY == 0:
             # fetch some extra nodes' data
-            # l, lr, predictions = sess.run([loss, learning_rate, train_prediction],
-            #                               feed_dict=feed_dict)
+            l, lr, predictions = sess.run([loss, learning_rate, train_prediction])
             elapsed_time = time.time() - start_time
             start_time = time.time()
-            print('Step {} ({:.1f} ms)'.format(step, 1000 * elapsed_time / EVAL_FREQUENCY))
-            # print('Step %d (epoch %.2f), %.1f ms' %
-            #       (step, float(step) * BATCH_SIZE / train_size,
-            #        1000 * elapsed_time / EVAL_FREQUENCY))
-            # print('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
+            step_time = 1000 * elapsed_time / EVAL_FREQUENCY
+            epoch = float(step) * BATCH_SIZE / train_size
+            print('Step {} of {} (batch {}), {:.1f} ms per step'.format(step, num_steps, epoch, step_time))
+            print('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
             # print('Minibatch error: %.1f%%' % error_rate(predictions, batch_labels))
             # print('Validation error: %.1f%%' % error_rate(
             #     eval_in_batches(validation_data, sess), validation_labels))
