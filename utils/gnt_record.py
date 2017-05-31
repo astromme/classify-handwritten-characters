@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import tensorflow as tf
-import skimage.io as io
 
 IMAGE_HEIGHT = 128
 IMAGE_WIDTH = 128
@@ -64,6 +63,7 @@ def read_and_decode(filename_queue):
 
 
 def main():
+    import skimage.io as io
     with open('label_keys.list') as f:
         labels = f.readlines()
 
