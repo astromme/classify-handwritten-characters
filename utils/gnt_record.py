@@ -2,12 +2,12 @@
 
 import tensorflow as tf
 
-IMAGE_HEIGHT = 128
-IMAGE_WIDTH = 128
+IMAGE_HEIGHT = 28
+IMAGE_WIDTH = 28
 IMAGE_DEPTH = 1
-BATCH_SIZE = 20
+BATCH_SIZE = 200
 NUM_EPOCHS = 1
-NUM_SAMPLES = 50000
+NUM_SAMPLES = 4222
 
 tfrecords_filename = "hwdb1.1.tfrecords"
 
@@ -43,18 +43,23 @@ def read_and_decode(filename_queue):
     image = tf.reshape(image, image_shape)
     label = tf.reshape(label, [1])
 
-    image_size_const = tf.constant((IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_DEPTH), dtype=tf.int32)
+    image_size_const = tf.constant((IMAGE_HEIGHT, IMAGE_WIDTH), dtype=tf.int32)
 
     # Random transformations can be put here: right before you crop images
     # to predefined size. To get more information look at the stackoverflow
     # question linked above.
 
-    resized_image = tf.image.resize_image_with_crop_or_pad(image=image,
+    longer_side = tf.maximum(height, width)
+
+    resized_image = tf.image.resize_images(images=image,
+                                          size=image_size_const
+                                          )
+    resized_padded_image = tf.image.resize_image_with_crop_or_pad(image=resized_image,
                                            target_height=IMAGE_HEIGHT,
                                            target_width=IMAGE_WIDTH)
 
 
-    images, labels = tf.train.shuffle_batch( [resized_image, label],
+    images, labels = tf.train.shuffle_batch( [resized_padded_image, label],
                                                  batch_size=BATCH_SIZE,
                                                  capacity=30,
                                                  num_threads=2,

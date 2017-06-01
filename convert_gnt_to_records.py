@@ -18,8 +18,8 @@ import random
 hyper_params = {
     'image_width' : 28,
     'image_height' : 28,
-    'max_output_classes' : 4000,
-    'max_imput_samples' : 50000
+    'max_output_classes' : 5000,
+    'max_imput_samples' : 10000000
 }
 
 def _int64_feature(value):
@@ -73,7 +73,7 @@ def load(dir_path, tagcode_index={}, label_keys=[]):
 def write_tf_records():
     from tqdm import tqdm
 
-    samples, tagcode_index, label_keys = load('HWDB1.1tst_gnt')
+    samples, tagcode_index, label_keys = load('HWDB1.1trn_gnt_P1')
 
     # one MUST randomly shuffle data before putting it into one of these
     # formats. Without this, one cannot make use of tensorflow's great
@@ -100,13 +100,19 @@ def write_tf_records():
         serialized = example.SerializeToString()
         writer.write(serialized)
 
+    train_samples = 0
+    test_samples = 0
     # iterate over each example
     # wrap with tqdm for a progress bar
     for bitmap, label in tqdm(samples):
         if random.random() < 0.7:
             write_example(train_writer, bitmap, label)
+            train_samples += 1
         else:
             write_example(test_writer, bitmap, label)
+            test_samples += 1
+
+    print("{} training samples, {} testing samples written".format(train_samples, test_samples))
 
 
 

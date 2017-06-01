@@ -1,22 +1,23 @@
 import tensorflow as tf
-from utils.gnt_record import read_and_decode, BATCH_SIZE
+from utils.gnt_record import read_and_decode, BATCH_SIZE, IMAGE_HEIGHT, IMAGE_WIDTH
 import time
 import sys
 import numpy
 
-WORK_DIRECTORY = 'data'
-IMAGE_SIZE = 128
+WORK_DIR = 'data'
 NUM_CHANNELS = 1
 PIXEL_DEPTH = 255
 SEED = 66478  # Set to None for random seed.
-NUM_EPOCHS = 10
-EVAL_FREQUENCY = 1  # Number of steps between evaluations.
-train_size = 50000
+NUM_EPOCHS = 1000
+EVAL_FREQUENCY = 100  # Number of steps between evaluations.
+train_size = 784907
+test_size = 336842
+SUMMARIES_DIR = 'summaries'
 
 def data_type():
     return tf.float32
 
-with open('label_keys.list') as f:
+with open('label_keys.list', encoding='utf8') as f:
     labels = f.readlines()
 
 NUM_LABELS = len(labels)
@@ -27,7 +28,26 @@ train_filename_queue = tf.train.string_input_producer(
     [tfrecords_train_filename], num_epochs=NUM_EPOCHS)
 
 test_filename_queue = tf.train.string_input_producer(
-    [tfrecords_train_filename], num_epochs=1)
+    [tfrecords_train_filename], num_epochs=NUM_EPOCHS)
+
+def variable_summaries(var):
+  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+  with tf.name_scope('summaries'):
+    mean = tf.reduce_mean(var)
+    tf.summary.scalar('mean', mean)
+    with tf.name_scope('stddev'):
+      stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    tf.summary.scalar('stddev', stddev)
+    tf.summary.scalar('max', tf.reduce_max(var))
+    tf.summary.scalar('min', tf.reduce_min(var))
+    tf.summary.histogram('histogram', var)
+
+def error_rate(predictions, labels):
+  """Return the error rate based on dense predictions and sparse labels."""
+  return 100.0 - (
+      100.0 *
+      numpy.sum(numpy.argmax(predictions, 1) == labels) /
+      predictions.shape[0])
 
 # Even when reading in multiple threads, share the filename
 # queue.
@@ -35,7 +55,9 @@ images_batch, labels_batch = read_and_decode(train_filename_queue)
 test_images_batch, test_labels_batch = read_and_decode(test_filename_queue)
 
 # simple model
-images_batch_normalized = images_batch / PIXEL_DEPTH - 0.5
+with tf.name_scope('train_data'):
+    images_batch_normalized = images_batch / PIXEL_DEPTH - 0.5
+    #variable_summaries(images_batch_normalized)
 test_images_batch_normalized = test_images_batch / PIXEL_DEPTH - 0.5
 
 # The variables below hold all the trainable weights. They are passed an
@@ -51,7 +73,7 @@ conv2_weights = tf.Variable(tf.truncated_normal(
   seed=SEED, dtype=data_type()))
 conv2_biases = tf.Variable(tf.constant(0.1, shape=[64], dtype=data_type()))
 fc1_weights = tf.Variable(  # fully connected, depth 512.
-  tf.truncated_normal([IMAGE_SIZE // 4 * IMAGE_SIZE // 4 * 64, 512],
+  tf.truncated_normal([IMAGE_HEIGHT // 4 * IMAGE_WIDTH // 4 * 64, 512],
                       stddev=0.1,
                       seed=SEED,
                       dtype=data_type()))
@@ -109,9 +131,15 @@ def model(data, train=False):
 
 
 # Training computation: logits + cross-entropy loss.
-logits = model(images_batch_normalized, train=True)
-loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
-  labels=labels_batch, logits=logits))
+with tf.name_scope('logits'):
+    logits = model(images_batch_normalized, train=True)
+    variable_summaries(logits)
+
+with tf.name_scope('loss'):
+    loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
+      labels=labels_batch, logits=logits))
+    tf.summary.scalar('loss', loss)
+
 
 # L2 regularization for the fully connected parameters.
 regularizers = (tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +
@@ -140,18 +168,19 @@ train_prediction = tf.nn.softmax(logits)
 # Predictions for the test and validation, which we'll compute less often.
 eval_prediction = tf.nn.softmax(model(test_images_batch_normalized))
 
-# The op for initializing the variables.
-init_op = tf.group(tf.global_variables_initializer(),
-                   tf.local_variables_initializer())
-
-def error_rate(predictions, labels):
-  """Return the error rate based on dense predictions and sparse labels."""
-  return 100.0 - (
-      100.0 *
-      numpy.sum(numpy.argmax(predictions, 1) == labels) /
-      predictions.shape[0])
+saver = tf.train.Saver()
 
 with tf.Session()  as sess:
+    # Merge all the summaries and write them out to /tmp/mnist_logs (by default)
+    merged = tf.summary.merge_all()
+    train_writer = tf.summary.FileWriter(SUMMARIES_DIR + '/train',
+                                          sess.graph)
+    test_writer = tf.summary.FileWriter(SUMMARIES_DIR + '/test')
+
+    # The op for initializing the variables.
+    init_op = tf.group(tf.global_variables_initializer(),
+                       tf.local_variables_initializer())
+
     sess.run(init_op)
 
     coord = tf.train.Coordinator()
@@ -164,16 +193,23 @@ with tf.Session()  as sess:
         sess.run(optimizer)
 
         if step % EVAL_FREQUENCY == 0:
+            save_path = saver.save(sess, WORK_DIR + "/model-step{}.ckpt".format(step))
+            print("Model saved in file: %s" % save_path)
+
             # fetch some extra nodes' data
-            l, lr, predictions = sess.run([loss, learning_rate, train_prediction])
+            summary, l, lr, labels, predictions = sess.run([merged, loss, learning_rate, labels_batch, train_prediction])
+            train_writer.add_summary(summary, step)
             elapsed_time = time.time() - start_time
             start_time = time.time()
             step_time = 1000 * elapsed_time / EVAL_FREQUENCY
             epoch = float(step) * BATCH_SIZE / train_size
             print('Step {} of {} (batch {}), {:.1f} ms per step'.format(step, num_steps, epoch, step_time))
             print('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
+            print('train error: %.1f%%' % error_rate(predictions, labels))
 
-            test_images, test_labels = sess.run([test_images_batch_normalized, test_labels_batch])
+            summary, test_images, test_labels = sess.run([merged, test_images_batch_normalized, test_labels_batch])
+            test_writer.add_summary(summary, step)
+
 
             batch_predictions = sess.run(eval_prediction,
                                          feed_dict={test_images_batch_normalized: test_images})
