@@ -44,7 +44,7 @@ filename_queue = tf.train.string_input_producer(
     [tfrecords_filename], num_epochs=NUM_EPOCHS)
 
 
-image_queue, label_queue = read_and_decode(filename_queue)
+image_queue, label_queue = read_and_decode(filename_queue, 1)
 image_queue_normalized = image_queue / PIXEL_DEPTH - 0.5
 queue_logits = model(image_queue_normalized)
 queue_prediction = tf.nn.softmax(queue_logits)

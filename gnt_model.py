@@ -125,11 +125,11 @@ def main():
     test_filename_queue = tf.train.string_input_producer(
         [tfrecords_train_filename], num_epochs=NUM_EPOCHS)
 
-        
+
     # Even when reading in multiple threads, share the filename
     # queue.
-    images_batch, labels_batch = read_and_decode(train_filename_queue)
-    test_images_batch, test_labels_batch = read_and_decode(test_filename_queue)
+    images_batch, labels_batch = read_and_decode(train_filename_queue, BATCH_SIZE)
+    test_images_batch, test_labels_batch = read_and_decode(test_filename_queue, BATCH_SIZE)
 
     # simple model
     with tf.name_scope('train_data'):

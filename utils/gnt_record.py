@@ -5,13 +5,13 @@ import tensorflow as tf
 IMAGE_HEIGHT = 28
 IMAGE_WIDTH = 28
 IMAGE_DEPTH = 1
-BATCH_SIZE = 1
+BATCH_SIZE = 200
 NUM_EPOCHS = 1
 NUM_SAMPLES = 4222
 
 tfrecords_filename = "hwdb1.1.tfrecords"
 
-def read_and_decode(filename_queue):
+def read_and_decode(filename_queue, batch_size):
 
     reader = tf.TFRecordReader()
 
@@ -60,13 +60,13 @@ def read_and_decode(filename_queue):
 
 
     images, labels = tf.train.shuffle_batch( [resized_padded_image, label],
-                                                 batch_size=BATCH_SIZE,
+                                                 batch_size=batch_size,
                                                  capacity=30,
                                                  num_threads=2,
                                                  shapes=[(IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_DEPTH), [1]],
                                                  min_after_dequeue=10)
 
-    return images, tf.reshape(labels, [BATCH_SIZE])
+    return images, tf.reshape(labels, [batch_size])
 
 
 def main():
@@ -79,7 +79,7 @@ def main():
 
     # Even when reading in multiple threads, share the filename
     # queue.
-    image_queue, label_queue = read_and_decode(filename_queue)
+    image_queue, label_queue = read_and_decode(filename_queue, BATCH_SIZE)
 
     # The op for initializing the variables.
     init_op = tf.group(tf.global_variables_initializer(),
