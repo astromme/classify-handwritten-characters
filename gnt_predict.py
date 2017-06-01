@@ -9,27 +9,24 @@ import png
 import skimage.io as io
 import tensorflow as tf
 
-_, model_path, image_filename = sys.argv
-
-with open(image_filename, 'rb') as f:
-    direct = png.Reader(f).asDirect()
-    mapped = map(numpy.uint8, direct[2])
-    image_2d = numpy.vstack(list(mapped))
 
 
 image_size_const = tf.constant((IMAGE_HEIGHT, IMAGE_WIDTH), dtype=tf.int32)
-x = tf.placeholder(tf.uint8, shape=(1, None, None, 1))
-resized_x = tf.image.resize_images(images=x,
-                                          size=image_size_const
-                                          )
-resized_padded_x = tf.image.resize_image_with_crop_or_pad(image=resized_x,
+
+node_image_raw = tf.placeholder(tf.string, shape=(None))
+node_image = tf.image.decode_png(node_image_raw, channels=1, dtype=tf.uint8, name="load_image")
+node_first_contrast = tf.image.adjust_contrast(images=node_image, contrast_factor=20)
+
+node_resized_image = tf.image.resize_images(images=node_first_contrast, size=image_size_const, method=tf.image.ResizeMethod.AREA)
+node_high_contrast = tf.image.adjust_contrast(images=node_resized_image, contrast_factor=1.5)
+node_padded_image = tf.image.resize_image_with_crop_or_pad(image=node_high_contrast,
                                            target_height=IMAGE_HEIGHT,
                                            target_width=IMAGE_WIDTH)
 
-scaled_x = resized_padded_x / PIXEL_DEPTH - 0.5
+node_normalized_image = tf.reshape(node_padded_image, [1, IMAGE_HEIGHT, IMAGE_WIDTH, 1]) / PIXEL_DEPTH - 0.5
 
-logits = model(scaled_x)
-predict_x = tf.nn.softmax(logits)
+node_logits = model(node_normalized_image)
+node_predictions = tf.nn.softmax(node_logits)
 
 saver = tf.train.Saver()
 
@@ -40,6 +37,11 @@ with open('label_keys.list', encoding='utf8') as f:
 init_op = tf.group(tf.global_variables_initializer(),
                    tf.local_variables_initializer())
 
+_, model_path, image_filename = sys.argv
+
+with open(image_filename, 'rb') as f:
+    image_data = f.read()
+
 with tf.Session() as sess:
     # Restore variables from disk.
 
@@ -47,14 +49,14 @@ with tf.Session() as sess:
     saver.restore(sess, model_path)
     print("Model restored.")
 
-    height, width = image_2d.shape
-    predictions, images_2d_resized = sess.run([predict_x, resized_padded_x], feed_dict={x: image_2d.reshape((1, height, width, 1))})
-    #
-    # io.imshow(image_2d.reshape(height, width))
-    # io.show()
+    predictions, normalized_images = sess.run([node_predictions, node_high_contrast],
+        feed_dict={node_image_raw: image_data})
 
-    image_2d_resized = images_2d_resized[0, :, :, :]
-    h, w, _ = image_2d_resized.shape
+    # image = normalized_images[0, :, :, :]
+    # h, w, _ = image.shape
+    #
+    # io.imshow(image.reshape(h, w))
+    # io.show()
 
     for prediction in predictions:
         top5 = reversed(numpy.argsort(prediction)[-10:])
