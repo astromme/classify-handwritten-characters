@@ -22,14 +22,6 @@ with open('label_keys.list', encoding='utf8') as f:
 
 NUM_LABELS = len(labels)
 
-tfrecords_train_filename = "hwdb1.1.train.tfrecords"
-tfrecords_test_filename = "hwdb1.1.test.tfrecords"
-train_filename_queue = tf.train.string_input_producer(
-    [tfrecords_train_filename], num_epochs=NUM_EPOCHS)
-
-test_filename_queue = tf.train.string_input_producer(
-    [tfrecords_train_filename], num_epochs=NUM_EPOCHS)
-
 def variable_summaries(var):
   """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
   with tf.name_scope('summaries'):
@@ -48,17 +40,6 @@ def error_rate(predictions, labels):
       100.0 *
       numpy.sum(numpy.argmax(predictions, 1) == labels) /
       predictions.shape[0])
-
-# Even when reading in multiple threads, share the filename
-# queue.
-images_batch, labels_batch = read_and_decode(train_filename_queue)
-test_images_batch, test_labels_batch = read_and_decode(test_filename_queue)
-
-# simple model
-with tf.name_scope('train_data'):
-    images_batch_normalized = images_batch / PIXEL_DEPTH - 0.5
-    #variable_summaries(images_batch_normalized)
-test_images_batch_normalized = test_images_batch / PIXEL_DEPTH - 0.5
 
 # The variables below hold all the trainable weights. They are passed an
 # initial value which will be assigned when we call:
@@ -130,97 +111,123 @@ def model(data, train=False):
     return tf.matmul(hidden, fc2_weights) + fc2_biases
 
 
-# Training computation: logits + cross-entropy loss.
-with tf.name_scope('logits'):
-    logits = model(images_batch_normalized, train=True)
-    variable_summaries(logits)
-
-with tf.name_scope('loss'):
-    loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
-      labels=labels_batch, logits=logits))
-    tf.summary.scalar('loss', loss)
 
 
-# L2 regularization for the fully connected parameters.
-regularizers = (tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +
-              tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc2_biases))
-# Add the regularization term to the loss.
-loss += 5e-4 * regularizers
 
-# Optimizer: set up a variable that's incremented once per batch and
-# controls the learning rate decay.
-batch = tf.Variable(0, dtype=data_type())
-# Decay once per epoch, using an exponential schedule starting at 0.01.
-learning_rate = tf.train.exponential_decay(
-  0.01,                # Base learning rate.
-  batch * BATCH_SIZE,  # Current index into the dataset.
-  train_size,          # Decay step.
-  0.95,                # Decay rate.
-  staircase=True)
-# Use simple momentum for the optimization.
-optimizer = tf.train.MomentumOptimizer(learning_rate,
-                                     0.9).minimize(loss,
-                                                   global_step=batch)
+def main():
 
-# Predictions for the current training minibatch.
-train_prediction = tf.nn.softmax(logits)
+    tfrecords_train_filename = "hwdb1.1.train.tfrecords"
+    tfrecords_test_filename = "hwdb1.1.test.tfrecords"
 
-# Predictions for the test and validation, which we'll compute less often.
-eval_prediction = tf.nn.softmax(model(test_images_batch_normalized))
+    train_filename_queue = tf.train.string_input_producer(
+        [tfrecords_train_filename], num_epochs=NUM_EPOCHS)
 
-saver = tf.train.Saver()
+    test_filename_queue = tf.train.string_input_producer(
+        [tfrecords_train_filename], num_epochs=NUM_EPOCHS)
 
-with tf.Session()  as sess:
-    # Merge all the summaries and write them out to /tmp/mnist_logs (by default)
-    merged = tf.summary.merge_all()
-    train_writer = tf.summary.FileWriter(SUMMARIES_DIR + '/train',
-                                          sess.graph)
-    test_writer = tf.summary.FileWriter(SUMMARIES_DIR + '/test')
+        
+    # Even when reading in multiple threads, share the filename
+    # queue.
+    images_batch, labels_batch = read_and_decode(train_filename_queue)
+    test_images_batch, test_labels_batch = read_and_decode(test_filename_queue)
 
-    # The op for initializing the variables.
-    init_op = tf.group(tf.global_variables_initializer(),
-                       tf.local_variables_initializer())
+    # simple model
+    with tf.name_scope('train_data'):
+        images_batch_normalized = images_batch / PIXEL_DEPTH - 0.5
+        #variable_summaries(images_batch_normalized)
+    test_images_batch_normalized = test_images_batch / PIXEL_DEPTH - 0.5
 
-    sess.run(init_op)
+    # Training computation: logits + cross-entropy loss.
+    with tf.name_scope('logits'):
+        logits = model(images_batch_normalized, train=True)
+        variable_summaries(logits)
 
-    coord = tf.train.Coordinator()
-    threads = tf.train.start_queue_runners(coord=coord)
-
-    start_time = time.time()
-    num_steps = NUM_EPOCHS*(train_size//BATCH_SIZE)
-    for step in range(num_steps):
-        step += 1
-        sess.run(optimizer)
-
-        if step % EVAL_FREQUENCY == 0:
-            save_path = saver.save(sess, WORK_DIR + "/model-step{}.ckpt".format(step))
-            print("Model saved in file: %s" % save_path)
-
-            # fetch some extra nodes' data
-            summary, l, lr, labels, predictions = sess.run([merged, loss, learning_rate, labels_batch, train_prediction])
-            train_writer.add_summary(summary, step)
-            elapsed_time = time.time() - start_time
-            start_time = time.time()
-            step_time = 1000 * elapsed_time / EVAL_FREQUENCY
-            epoch = float(step) * BATCH_SIZE / train_size
-            print('Step {} of {} (batch {}), {:.1f} ms per step'.format(step, num_steps, epoch, step_time))
-            print('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
-            print('train error: %.1f%%' % error_rate(predictions, labels))
-
-            summary, test_images, test_labels = sess.run([merged, test_images_batch_normalized, test_labels_batch])
-            test_writer.add_summary(summary, step)
+    with tf.name_scope('loss'):
+        loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
+          labels=labels_batch, logits=logits))
+        tf.summary.scalar('loss', loss)
 
 
-            batch_predictions = sess.run(eval_prediction,
-                                         feed_dict={test_images_batch_normalized: test_images})
+    # L2 regularization for the fully connected parameters.
+    regularizers = (tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +
+                  tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc2_biases))
+    # Add the regularization term to the loss.
+    loss += 5e-4 * regularizers
+
+    # Optimizer: set up a variable that's incremented once per batch and
+    # controls the learning rate decay.
+    batch = tf.Variable(0, dtype=data_type())
+    # Decay once per epoch, using an exponential schedule starting at 0.01.
+    learning_rate = tf.train.exponential_decay(
+      0.01,                # Base learning rate.
+      batch * BATCH_SIZE,  # Current index into the dataset.
+      train_size,          # Decay step.
+      0.95,                # Decay rate.
+      staircase=True)
+    # Use simple momentum for the optimization.
+    optimizer = tf.train.MomentumOptimizer(learning_rate,
+                                         0.9).minimize(loss,
+                                                       global_step=batch)
+
+    # Predictions for the current training minibatch.
+    train_prediction = tf.nn.softmax(logits)
+
+    # Predictions for the test and validation, which we'll compute less often.
+    eval_prediction = tf.nn.softmax(model(test_images_batch_normalized))
+
+    saver = tf.train.Saver()
+
+    with tf.Session()  as sess:
+        # Merge all the summaries and write them out to /tmp/mnist_logs (by default)
+        merged = tf.summary.merge_all()
+        train_writer = tf.summary.FileWriter(SUMMARIES_DIR + '/train',
+                                              sess.graph)
+        test_writer = tf.summary.FileWriter(SUMMARIES_DIR + '/test')
+
+        # The op for initializing the variables.
+        init_op = tf.group(tf.global_variables_initializer(),
+                           tf.local_variables_initializer())
+
+        sess.run(init_op)
+
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(coord=coord)
+
+        start_time = time.time()
+        num_steps = NUM_EPOCHS*(train_size//BATCH_SIZE)
+        for step in range(num_steps):
+            step += 1
+            sess.run(optimizer)
+
+            if step % EVAL_FREQUENCY == 0:
+                save_path = saver.save(sess, WORK_DIR + "/model-step{}.ckpt".format(step))
+                print("Model saved in file: %s" % save_path)
+
+                # fetch some extra nodes' data
+                summary, l, lr, labels, predictions = sess.run([merged, loss, learning_rate, labels_batch, train_prediction])
+                train_writer.add_summary(summary, step)
+                elapsed_time = time.time() - start_time
+                start_time = time.time()
+                step_time = 1000 * elapsed_time / EVAL_FREQUENCY
+                epoch = float(step) * BATCH_SIZE / train_size
+                print('Step {} of {} (batch {}), {:.1f} ms per step'.format(step, num_steps, epoch, step_time))
+                print('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
+                print('train error: %.1f%%' % error_rate(predictions, labels))
+
+                summary, test_images, test_labels = sess.run([merged, test_images_batch_normalized, test_labels_batch])
+                test_writer.add_summary(summary, step)
 
 
-            print('test error: %.1f%%' % error_rate(batch_predictions, test_labels))
+                batch_predictions = sess.run(eval_prediction,
+                                             feed_dict={test_images_batch_normalized: test_images})
 
-            # print('Minibatch error: %.1f%%' % error_rate(predictions, batch_labels))
-            # print('Validation error: %.1f%%' % error_rate(
-            #     eval_in_batches(validation_data, sess), validation_labels))
-            sys.stdout.flush()
 
-    coord.request_stop()
-    coord.join(threads)
+                print('test error: %.1f%%' % error_rate(batch_predictions, test_labels))
+
+                # print('Minibatch error: %.1f%%' % error_rate(predictions, batch_labels))
+                # print('Validation error: %.1f%%' % error_rate(
+                #     eval_in_batches(validation_data, sess), validation_labels))
+                sys.stdout.flush()
+
+        coord.request_stop()
+        coord.join(threads)
