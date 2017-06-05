@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Chinese Character Handwriting</string>
+    <string name="clear">Clear</string>
+    <string name="title_activity_main">Main</string>
+</resources>
