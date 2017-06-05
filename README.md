@@ -23,16 +23,16 @@ To update:
  * Replace android/app/src/main/jniLibs/armeabi-v7a/libtensorflow_inference.so with the [nightly version][nightly_so].
 
 ## TODO
- [x] Update the android app to allow drawing at a higher resolution that gets downsampled before inference
- [x] Update the android app to crop the drawing before sending to the model
- [x] Make tapping on a character bring user to dictionary entry for that character
- [x] Add undo for strokes
- [ ] Add mobile web classifier
- [ ] Update to the latest model
- [ ] Comment python code
- [ ] Send drawings to server for better training data
- [ ] Refactor python code to better separate the steps in training
- [ ] Add second model for processing characters that are composed of strokes
+- [x] Update the android app to allow drawing at a higher resolution that gets downsampled before inference
+- [x] Update the android app to crop the drawing before sending to the model
+- [x] Make tapping on a character bring user to dictionary entry for that character
+- [x] Add undo for strokes
+- [ ] Add mobile web classifier
+- [ ] Update to the latest model
+- [ ] Comment python code
+- [ ] Send drawings to server for better training data
+- [ ] Refactor python code to better separate the steps in training
+- [ ] Add second model for processing characters that are composed of strokes
 
 [1]: http://www.nlpr.ia.ac.cn/databases/download/feature_data/HWDB1.1trn_gnt.zip
 [2]: http://www.nlpr.ia.ac.cn/databases/download/feature_data/HWDB1.1tst_gnt.zip
