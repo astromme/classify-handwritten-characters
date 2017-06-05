@@ -54,10 +54,26 @@ public class DrawModel {
         }
     }
 
+    public static class Extremes {
+        public float minX = Float.MAX_VALUE;
+        public float minY = Float.MAX_VALUE;
+        public float maxX = Float.MIN_VALUE;
+        public float maxY = Float.MIN_VALUE;
+
+        public void update(float x, float y) {
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+        }
+    }
+
     private Line mCurrentLine;
 
     private int mWidth;  // pixel width = 28
     private int mHeight; // pixel height = 28
+
+    private Extremes mExtremes = new Extremes();
 
     private List<Line> mLines = new ArrayList<>();
 
@@ -78,6 +94,7 @@ public class DrawModel {
         mCurrentLine = new Line();
         mCurrentLine.addElem(new LineElem(x, y));
         mLines.add(mCurrentLine);
+        mExtremes.update(x, y);
     }
 
     public void endLine() {
@@ -87,6 +104,7 @@ public class DrawModel {
     public void addLineElem(float x, float y) {
         if (mCurrentLine != null) {
             mCurrentLine.addElem(new LineElem(x, y));
+            mExtremes.update(x, y);
         }
     }
 
@@ -97,6 +115,8 @@ public class DrawModel {
     public Line getLine(int index) {
         return mLines.get(index);
     }
+
+    public Extremes getExtremes() { return mExtremes; }
 
     public void clear() {
         mLines.clear();

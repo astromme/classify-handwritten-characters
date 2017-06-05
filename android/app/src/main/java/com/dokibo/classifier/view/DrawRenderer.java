@@ -36,6 +36,7 @@ public class DrawRenderer {
         for (int i = startLineIndex; i < lineSize; ++i) {
             DrawModel.Line line = model.getLine(i);
             paint.setColor(Color.BLACK);
+            paint.setStrokeWidth(15);
             int elemSize = line.getElemSize();
             if (elemSize < 1) {
                 continue;

@@ -20,7 +20,7 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
 
     private static final String TAG = "MainActivity";
 
-    private static final int PIXEL_WIDTH = 28;
+    private static final int PIXEL_WIDTH = 512;
 
     private TextView mResultText;
 

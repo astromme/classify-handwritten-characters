@@ -161,12 +161,22 @@ public class DrawView extends View {
             return null;
         }
 
-        int width = mOffscreenBitmap.getWidth();
-        int height = mOffscreenBitmap.getHeight();
+        int cropPadding = 10;
+
+        int cropX = Math.max(0, (int) mModel.getExtremes().minX - cropPadding);
+        int cropY = Math.max(0, (int) mModel.getExtremes().minY - cropPadding);
+        int cropWidth = Math.min(mOffscreenBitmap.getWidth(), (int) mModel.getExtremes().maxX + cropPadding) - cropX;
+        int cropHeight = Math.min(mOffscreenBitmap.getHeight(), (int) mModel.getExtremes().maxY + cropPadding) - cropY;
+
+        Bitmap cropped = Bitmap.createBitmap(mOffscreenBitmap, cropX, cropY, cropWidth, cropHeight);
+        Bitmap scaled = Bitmap.createScaledBitmap(cropped, 28, 28, true);
+
+        int width = scaled.getWidth();
+        int height = scaled.getHeight();
 
         // Get 28x28 pixel data from bitmap
         int[] pixels = new int[width * height];
-        mOffscreenBitmap.getPixels(pixels, 0, width, 0, 0, width, height);
+        scaled.getPixels(pixels, 0, width, 0, 0, width, height);
 
         float[] retPixels = new float[pixels.length];
         for (int i = 0; i < pixels.length; ++i) {
