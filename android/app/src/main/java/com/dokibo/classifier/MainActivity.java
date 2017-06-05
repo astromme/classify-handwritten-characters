@@ -1,8 +1,16 @@
 package com.dokibo.classifier;
 
+import android.content.ComponentName;
+import android.content.Intent;
+import android.graphics.Color;
 import android.graphics.PointF;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.TextPaint;
+import android.text.method.LinkMovementMethod;
+import android.text.style.ClickableSpan;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -74,6 +82,7 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
                 onUndoClicked();
             }
         });
+
 
         mResultText = (TextView) findViewById(R.id.textResult);
 
@@ -179,10 +188,27 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
             value += result.getTitle() + " ";
         }
 
-        mResultText.setText(value);
+        SpannableString ss = new SpannableString(value);
 
+        for (int i = 0; i < ss.length(); i += 2) {
+            final String character = String.valueOf(ss.charAt(i));
 
+            ClickableSpan clickableSpan = new ClickableSpan() {
+                @Override
+                public void onClick(View textView) {
+                    openCharacter(character);
+                }
+                @Override
+                public void updateDrawState(TextPaint ds) {
+                    super.updateDrawState(ds);
+                    ds.setUnderlineText(false);
+                }
+            };
+            ss.setSpan(clickableSpan, i, i+1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
 
+        mResultText.setText(ss);
+        mResultText.setMovementMethod(LinkMovementMethod.getInstance());
     }
 
     private void onClearClicked() {
@@ -199,6 +225,17 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
         mDrawView.reset();
         mDrawView.invalidate();
         onDetectClicked();
+    }
+
+    private void openCharacter(String character) {
+
+        Intent plecoIntent = new Intent(Intent.ACTION_MAIN);
+        plecoIntent.setComponent(new ComponentName("com.pleco.chinesesystem","com.pleco.chinesesystem.PlecoDroidMainActivity"));
+        plecoIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+        plecoIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        plecoIntent.putExtra("launch_section", "dictSearch");
+                plecoIntent.putExtra("replacesearchtext", character);
+                        startActivity(plecoIntent);
     }
 
     @Override
