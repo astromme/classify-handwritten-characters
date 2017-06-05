@@ -37,6 +37,7 @@ public class DrawRenderer {
             DrawModel.Line line = model.getLine(i);
             paint.setColor(Color.BLACK);
             paint.setStrokeWidth(15);
+            paint.setStrokeCap(Paint.Cap.ROUND);
             int elemSize = line.getElemSize();
             if (elemSize < 1) {
                 continue;
