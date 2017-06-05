@@ -111,11 +111,7 @@ def model(data, train=False):
     return tf.matmul(hidden, fc2_weights) + fc2_biases
 
 
-
-
-
 def main():
-
     tfrecords_train_filename = "hwdb1.1.train.tfrecords"
     tfrecords_test_filename = "hwdb1.1.test.tfrecords"
 
@@ -231,3 +227,6 @@ def main():
 
         coord.request_stop()
         coord.join(threads)
+
+if __name__ == '__main__':
+    main()
