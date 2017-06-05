@@ -16,6 +16,8 @@
 
 package com.dokibo.classifier.view;
 
+import android.util.Log;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,6 +26,8 @@ import java.util.List;
  */
 
 public class DrawModel {
+
+    private static final String TAG = "DrawModel";
 
     public static class LineElem {
         public float x;
@@ -120,5 +124,12 @@ public class DrawModel {
 
     public void clear() {
         mLines.clear();
+    }
+
+    public void undo() {
+        if (mLines.size() > 0) {
+            mLines.remove(mLines.size() - 1);
+            Log.d(TAG, "removed line");
+        }
     }
 }

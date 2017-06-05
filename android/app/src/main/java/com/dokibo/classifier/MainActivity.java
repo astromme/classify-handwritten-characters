@@ -67,6 +67,14 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
             }
         });
 
+        View undoButton = findViewById(R.id.buttonUndo);
+        undoButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onUndoClicked();
+            }
+        });
+
         mResultText = (TextView) findViewById(R.id.textResult);
 
         initTensorFlowAndLoadModel();
@@ -183,6 +191,14 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
         mDrawView.invalidate();
 
         mResultText.setText("");
+    }
+
+
+    private void onUndoClicked() {
+        mModel.undo();
+        mDrawView.reset();
+        mDrawView.invalidate();
+        onDetectClicked();
     }
 
     @Override
