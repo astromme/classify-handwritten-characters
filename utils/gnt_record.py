@@ -49,6 +49,19 @@ def read_and_decode(filename_queue, batch_size):
     # to predefined size. To get more information look at the stackoverflow
     # question linked above.
 
+    #pad the image by up to 3
+    padding_x = tf.random_uniform([1], 1, 3, name='padding_x')
+    padding_y = tf.random_uniform([1], 1, 3, name='padding_y')
+    image = tf.contrib.image.resize_image_with_crop_or_pad(
+        image=image,
+        target_height=height*padding_y[0],
+        target_width=width*padding_x[0],
+    )
+
+    # rotate by up to 60 degrees in either direction
+    angles = tf.random_uniform([1], -1/3, 1/3, name='random_rotation_radians')
+    image = tf.contrib.image.rotate(image, angles)
+
     longer_side = tf.maximum(height, width)
 
     resized_image = tf.image.resize_images(images=image,
