@@ -40,7 +40,7 @@ def read_and_decode(filename_queue, batch_size):
 
     image_shape = tf.stack([height, width, depth])
 
-    image = tf.reshape(image, image_shape)
+    image = tf.reshape(image, image_shape, name='image')
     label = tf.reshape(label, [1])
 
     image_size_const = tf.constant((IMAGE_HEIGHT, IMAGE_WIDTH), dtype=tf.int32)
@@ -52,10 +52,10 @@ def read_and_decode(filename_queue, batch_size):
     #pad the image by up to 3
     padding_x = tf.random_uniform([1], 1, 3, name='padding_x')
     padding_y = tf.random_uniform([1], 1, 3, name='padding_y')
-    image = tf.contrib.image.resize_image_with_crop_or_pad(
+    image = tf.image.resize_image_with_crop_or_pad(
         image=image,
-        target_height=height*padding_y[0],
-        target_width=width*padding_x[0],
+        target_height=tf.cast(tf.cast(height, tf.float32)*padding_y[0], tf.int32),
+        target_width=tf.cast(tf.cast(width, tf.float32)*padding_x[0], tf.int32),
     )
 
     # rotate by up to 60 degrees in either direction
