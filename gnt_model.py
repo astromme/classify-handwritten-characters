@@ -187,7 +187,7 @@ def main():
         'image_height':IMAGE_HEIGHT,
         'pixel_depth': 255,
         'eval_frequency' : 100,
-        'batch_size': 8,
+        'batch_size': 2048,
         'learning_rate': 0.0005,
         'num_channels': 1,
         'keep_prob': 0.6,
