@@ -1,26 +1,15 @@
+#!/usr/bin/env python3
+
 import tensorflow as tf
+from tensorflow.contrib.layers import flatten
 from utils.gnt_record import read_and_decode, BATCH_SIZE, IMAGE_HEIGHT, IMAGE_WIDTH
 import time
 import sys
 import numpy
-
-WORK_DIR = 'data'
-NUM_CHANNELS = 1
-PIXEL_DEPTH = 255
-SEED = 66478  # Set to None for random seed.
-NUM_EPOCHS = 1000
-EVAL_FREQUENCY = 100  # Number of steps between evaluations.
-train_size = 784907
-test_size = 336842
-SUMMARIES_DIR = 'summaries'
-
-def data_type():
-    return tf.float32
+import tqdm
 
 with open('label_keys.list', encoding='utf8') as f:
     labels = f.readlines()
-
-NUM_LABELS = len(labels)
 
 def variable_summaries(var):
   """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
@@ -34,199 +23,189 @@ def variable_summaries(var):
     tf.summary.scalar('min', tf.reduce_min(var))
     tf.summary.histogram('histogram', var)
 
-def error_rate(predictions, labels):
-  """Return the error rate based on dense predictions and sparse labels."""
-  return 100.0 - (
-      100.0 *
-      numpy.sum(numpy.argmax(predictions, 1) == labels) /
-      predictions.shape[0])
 
-# The variables below hold all the trainable weights. They are passed an
-# initial value which will be assigned when we call:
-# {tf.global_variables_initializer().run()}
-conv1_weights = tf.Variable(
-  tf.truncated_normal([5, 5, NUM_CHANNELS, 32],  # 5x5 filter, depth 32.
-                      stddev=0.1,
-                      seed=SEED, dtype=data_type()))
-conv1_biases = tf.Variable(tf.zeros([32], dtype=data_type()))
-conv2_weights = tf.Variable(tf.truncated_normal(
-  [5, 5, 32, 64], stddev=0.1,
-  seed=SEED, dtype=data_type()))
-conv2_biases = tf.Variable(tf.constant(0.1, shape=[64], dtype=data_type()))
-fc1_weights = tf.Variable(  # fully connected, depth 512.
-  tf.truncated_normal([IMAGE_HEIGHT // 4 * IMAGE_WIDTH // 4 * 64, 512],
-                      stddev=0.1,
-                      seed=SEED,
-                      dtype=data_type()))
-fc1_biases = tf.Variable(tf.constant(0.1, shape=[512], dtype=data_type()))
-fc2_weights = tf.Variable(tf.truncated_normal([512, NUM_LABELS],
-                                            stddev=0.1,
-                                            seed=SEED,
-                                            dtype=data_type()))
-fc2_biases = tf.Variable(tf.constant(
-  0.1, shape=[NUM_LABELS], dtype=data_type()))
+def StrommeNet3Layer(x, keep_prob, hp):
+    # Arguments used for tf.truncated_normal, randomly defines variables for the weights and biases for each layer
+    mu = 0
+    sigma = 0.1
 
+    initializer = tf.truncated_normal_initializer(mean=mu, stddev=sigma)
 
-  # We will replicate the model structure for the training subgraph, as well
-  # as the evaluation subgraphs, while sharing the trainable parameters.
-def model(data, train=False):
-    """The Model definition."""
-    # 2D convolution, with 'SAME' padding (i.e. the output feature map has
-    # the same size as the input). Note that {strides} is a 4D array whose
-    # shape matches the data layout: [image index, y, x, depth].
-    conv = tf.nn.conv2d(data,
-                        conv1_weights,
-                        strides=[1, 1, 1, 1],
-                        padding='SAME')
-    # Bias and rectified linear non-linearity.
-    relu = tf.nn.relu(tf.nn.bias_add(conv, conv1_biases))
-    # Max pooling. The kernel size spec {ksize} also follows the layout of
-    # the data. Here we have a pooling window of 2, and a stride of 2.
-    pool = tf.nn.max_pool(relu,
-                          ksize=[1, 2, 2, 1],
-                          strides=[1, 2, 2, 1],
-                          padding='SAME')
-    conv = tf.nn.conv2d(pool,
-                        conv2_weights,
-                        strides=[1, 1, 1, 1],
-                        padding='SAME')
-    relu = tf.nn.relu(tf.nn.bias_add(conv, conv2_biases))
-    pool = tf.nn.max_pool(relu,
-                          ksize=[1, 2, 2, 1],
-                          strides=[1, 2, 2, 1],
-                          padding='SAME')
-    # Reshape the feature map cuboid into a 2D matrix to feed it to the
-    # fully connected layers.
-    pool_shape = pool.get_shape().as_list()
-    reshape = tf.reshape(
-        pool,
-        [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]])
-    # Fully connected layer. Note that the '+' operation automatically
-    # broadcasts the biases.
-    hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
-    # Add a 50% dropout during training only. Dropout also scales
-    # activations such that no rescaling is needed at evaluation time.
-    if train:
-      hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
-    return tf.matmul(hidden, fc2_weights) + fc2_biases
+    # Layer 1: Convolutional.
+    with tf.variable_scope('StrommeNet3Layer'):
+        conv1_weights = tf.get_variable('conv1_weights', [5, 5, hp['num_channels'], hp['conv1_num_outputs']], initializer=initializer)
+        variable_summaries(conv1_weights)
+
+    x = tf.nn.conv2d(x, conv1_weights, strides=[1, 1, 1, 1], padding='VALID', name='conv1')
+    x = tf.nn.max_pool(x, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+
+    # Activation.
+    x = tf.nn.relu(x)
+    x = tf.nn.dropout(x, keep_prob=keep_prob, name='activation_dropout_1')
+
+    # Layer 2: Convolutional.
+    with tf.variable_scope('StrommeNet3Layer'):
+        conv2_weights = tf.get_variable('conv2_weights', [5, 5, hp['conv1_num_outputs'], hp['conv2_num_outputs']], initializer=initializer)
+        variable_summaries(conv2_weights)
+
+    x = tf.nn.conv2d(x, conv2_weights, strides=[1,1,1,1], padding='VALID', name='conv2')
+    x = tf.nn.max_pool(x, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+
+    # Activation.
+    x = tf.nn.relu(x)
+    x = tf.nn.dropout(x, keep_prob=keep_prob, name='activation_dropout_2')
+
+    layer2_flatten = flatten(x)
+
+    # Layer 3: Convolutional.
+    with tf.variable_scope('StrommeNet3Layer'):
+        conv3_weights = tf.get_variable('conv3_weights', [3, 3, hp['conv2_num_outputs'], hp['conv3_num_outputs']], initializer=initializer)
+        variable_summaries(conv3_weights)
+
+    x = tf.nn.conv2d(x, conv3_weights, strides=[1,1,1,1], padding='VALID', name='conv3')
+    x = tf.nn.max_pool(x, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
 
 
-def main():
-    tfrecords_train_filename = "hwdb1.1.train.tfrecords"
-    tfrecords_test_filename = "hwdb1.1.test.tfrecords"
+    # Activation.
+    x = tf.nn.relu(x)
+    x = tf.nn.dropout(x, keep_prob=keep_prob, name='activation_dropout_3')
 
-    train_filename_queue = tf.train.string_input_producer(
-        [tfrecords_train_filename], num_epochs=NUM_EPOCHS)
+    # Flatten. Output = 512.
+    flattened = tf.concat([flatten(x), layer2_flatten], 1)
 
-    test_filename_queue = tf.train.string_input_producer(
-        [tfrecords_train_filename], num_epochs=NUM_EPOCHS)
+    # Layer 3: Fully Connected.
+    fully_connected1 = tf.layers.dense(inputs=flattened, units=384)
 
+    # Activation.
+    activation3 = tf.nn.relu(fully_connected1)
 
-    # Even when reading in multiple threads, share the filename
-    # queue.
-    images_batch, labels_batch = read_and_decode(train_filename_queue, BATCH_SIZE)
-    test_images_batch, test_labels_batch = read_and_decode(test_filename_queue, BATCH_SIZE)
+    # Layer 4: Fully Connected.
+    fully_connected2 = tf.layers.dense(inputs=activation3, units=128)
 
-    # simple model
-    with tf.name_scope('train_data'):
-        images_batch_normalized = images_batch / PIXEL_DEPTH - 0.5
-        #variable_summaries(images_batch_normalized)
-    test_images_batch_normalized = test_images_batch / PIXEL_DEPTH - 0.5
+    # Activation.
+    activation4 = tf.nn.relu(fully_connected2)
 
-    # Training computation: logits + cross-entropy loss.
-    with tf.name_scope('logits'):
-        logits = model(images_batch_normalized, train=True)
-        variable_summaries(logits)
+    # Layer 5: Fully Connected.
+    logits = tf.layers.dense(inputs=activation4, units=hp['n_classes'], name='logits')
 
-    with tf.name_scope('loss'):
-        loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
-          labels=labels_batch, logits=logits))
-        tf.summary.scalar('loss', loss)
+    return logits
 
 
-    # L2 regularization for the fully connected parameters.
-    regularizers = (tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +
-                  tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc2_biases))
-    # Add the regularization term to the loss.
-    loss += 5e-4 * regularizers
+import math
+import time
+from datetime import datetime
+import shutil
+run_num = 0
 
-    # Optimizer: set up a variable that's incremented once per batch and
-    # controls the learning rate decay.
-    batch = tf.Variable(0, dtype=data_type())
-    # Decay once per epoch, using an exponential schedule starting at 0.01.
-    learning_rate = tf.train.exponential_decay(
-      0.01,                # Base learning rate.
-      batch * BATCH_SIZE,  # Current index into the dataset.
-      train_size,          # Decay step.
-      0.95,                # Decay rate.
-      staircase=True)
-    # Use simple momentum for the optimization.
-    optimizer = tf.train.MomentumOptimizer(learning_rate,
-                                         0.9).minimize(loss,
-                                                       global_step=batch)
+def build_graph(hp):
+    g = tf.Graph()
+    with g.as_default():
+        x = tf.placeholder(tf.float32, (None, hp['image_width'], hp['image_height'], hp['num_channels']), name='x')
+        y = tf.placeholder(tf.int32, (None), name='y')
+        keep_prob = tf.placeholder_with_default(1.0, [], name='keep_prob')
+        one_hot_y = tf.one_hot(y, hp['n_classes'], name='one_hot_y')
 
-    # Predictions for the current training minibatch.
-    train_prediction = tf.nn.softmax(logits)
+        x_normalized = (x - hp['pixel_depth']//2) - 1
+        logits = hp['model'](x_normalized, keep_prob, hp)
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=one_hot_y, logits=logits)
+        loss_operation = tf.reduce_mean(cross_entropy, name='loss_operation')
+        tf.summary.scalar('loss', loss_operation)
 
-    # Predictions for the test and validation, which we'll compute less often.
-    eval_prediction = tf.nn.softmax(model(test_images_batch_normalized))
+        optimizer = tf.train.AdamOptimizer(learning_rate = hp['learning_rate'])
+        training_operation = optimizer.minimize(loss_operation, name='training_operation')
+        correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(one_hot_y, 1), name='correct_prediction')
+        accuracy_operation = tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name='accuracy_operation')
+        tf.summary.scalar('accuracy', accuracy_operation)
 
-    saver = tf.train.Saver()
+        return g, x, y, keep_prob, logits, training_operation, accuracy_operation
 
-    with tf.Session()  as sess:
-        # Merge all the summaries and write them out to /tmp/mnist_logs (by default)
-        merged = tf.summary.merge_all()
-        train_writer = tf.summary.FileWriter(SUMMARIES_DIR + '/train',
-                                              sess.graph)
-        test_writer = tf.summary.FileWriter(SUMMARIES_DIR + '/test')
 
-        # The op for initializing the variables.
-        init_op = tf.group(tf.global_variables_initializer(),
-                           tf.local_variables_initializer())
+def train(hp):
+    graph, x, y, keep_prob, logits, training_operation, accuracy_operation = build_graph(hp)
 
-        sess.run(init_op)
+    with graph.as_default():
+        train_filename_queue = tf.train.string_input_producer(
+            [hp['train_filename']], num_epochs=hp['epochs'])
+
+        test_filename_queue = tf.train.string_input_producer(
+            [hp['test_filename']], num_epochs=hp['epochs'])
+
+        X_train_batch_op, y_train_batch_op = read_and_decode(train_filename_queue, hp['batch_size'])
+        X_test_batch_op, y_test_batch_op = read_and_decode(test_filename_queue, hp['batch_size'])
+
+    train_logs_dir = hp['logs_dir'] + '/{}-train'.format(hp['logs_prefix'])
+    valid_logs_dir = hp['logs_dir'] + '/{}-valid'.format(hp['logs_prefix'])
+
+    if hp['overwrite_logs']:
+        print("removing " + train_logs_dir)
+        print("removing " + valid_logs_dir)
+        try:
+            shutil.rmtree(train_logs_dir)
+            shutil.rmtree(valid_logs_dir)
+            time.sleep(5)
+        except FileNotFoundError:
+            pass
+
+    with graph.as_default():
+        saver = tf.train.Saver()
+        merged_summary = tf.summary.merge_all()
+        train_writer = tf.summary.FileWriter(train_logs_dir, graph=tf.get_default_graph())
+        valid_writer = tf.summary.FileWriter(valid_logs_dir, graph=tf.get_default_graph())
+
+    with tf.Session(graph=graph) as sess:
+        sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
 
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
 
-        start_time = time.time()
-        num_steps = NUM_EPOCHS*(train_size//BATCH_SIZE)
-        for step in range(num_steps):
+        step = 0
+        while True:
             step += 1
-            sess.run(optimizer)
+            batch_x, batch_y = sess.run([X_train_batch_op, y_train_batch_op])
+            summary, _ = sess.run([merged_summary, training_operation], feed_dict={x: batch_x, y: batch_y, keep_prob: hp['keep_prob']})
 
-            if step % EVAL_FREQUENCY == 0:
-                save_path = saver.save(sess, WORK_DIR + "/model-step{}.ckpt".format(step))
-                print("Model saved in file: %s" % save_path)
-
-                # fetch some extra nodes' data
-                summary, l, lr, labels, predictions = sess.run([merged, loss, learning_rate, labels_batch, train_prediction])
+            if step % hp['eval_frequency'] == 0:
                 train_writer.add_summary(summary, step)
-                elapsed_time = time.time() - start_time
-                start_time = time.time()
-                step_time = 1000 * elapsed_time / EVAL_FREQUENCY
-                epoch = float(step) * BATCH_SIZE / train_size
-                print('Step {} of {} (batch {}), {:.1f} ms per step'.format(step, num_steps, epoch, step_time))
-                print('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
-                print('train error: %.1f%%' % error_rate(predictions, labels))
 
-                summary, test_images, test_labels = sess.run([merged, test_images_batch_normalized, test_labels_batch])
-                test_writer.add_summary(summary, step)
+                saver.save(sess, hp['logs_dir'] + '/{}-step{}.ckpt'.format(hp['model'].__name__, step))
 
-
-                batch_predictions = sess.run(eval_prediction,
-                                             feed_dict={test_images_batch_normalized: test_images})
-
-
-                print('test error: %.1f%%' % error_rate(batch_predictions, test_labels))
-
-                # print('Minibatch error: %.1f%%' % error_rate(predictions, batch_labels))
-                # print('Validation error: %.1f%%' % error_rate(
-                #     eval_in_batches(validation_data, sess), validation_labels))
-                sys.stdout.flush()
+                batch_x, batch_y = sess.run([X_test_batch_op, y_test_batch_op])
+                summary, _, kp = sess.run([merged_summary, accuracy_operation, keep_prob], feed_dict={x: batch_x, y: batch_y, keep_prob: 1.0})
+                valid_writer.add_summary(summary, step)
 
         coord.request_stop()
         coord.join(threads)
+
+        saver.save(sess, hp['logs_dir'] + '/{}.ckpt'.format(hp['model'].__name__))
+        print("Model saved")
+
+def main():
+    hyperparameters_3layer = {
+        'model': StrommeNet3Layer,
+        'epochs': 100,
+        'image_width':IMAGE_WIDTH,
+        'image_height':IMAGE_HEIGHT,
+        'pixel_depth': 255,
+        'eval_frequency' : 100,
+        'batch_size': 8,
+        'learning_rate': 0.0005,
+        'num_channels': 1,
+        'keep_prob': 0.6,
+        'conv1_num_outputs' : 64,
+        'conv2_num_outputs': 128,
+        'conv3_num_outputs': 256,
+        'logs_dir': './logs',
+        'overwrite_logs': True,
+        'logs_prefix': 'StrommeNet3Layer', #'{}'.format(run_num), #datetime.now().strftime('%Y-%m-%d--%H.%M.%S'),
+        'train_filename': "hwdb1.1.train.tfrecords",
+        'test_filename': "hwdb1.1.test.tfrecords",
+        'n_classes': len(labels),
+    }
+
+    train(hyperparameters_3layer)
+
+    # train_size = 784907
+    # test_size = 336842
 
 if __name__ == '__main__':
     main()

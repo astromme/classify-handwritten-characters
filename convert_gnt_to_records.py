@@ -72,8 +72,9 @@ def load(dir_path, tagcode_index={}, label_keys=[]):
 
 def write_tf_records():
     from tqdm import tqdm
+    import sys
 
-    samples, tagcode_index, label_keys = load('HWDB1.1trn_gnt_P1')
+    samples, tagcode_index, label_keys = load(sys.argv[1])
 
     # one MUST randomly shuffle data before putting it into one of these
     # formats. Without this, one cannot make use of tensorflow's great
