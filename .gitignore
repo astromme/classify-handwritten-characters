@@ -1,7 +1,6 @@
 HWDB1.1tst_gnt
 .DS_Store
 *.tfrecords
-label_keys.list
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
