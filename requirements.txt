@@ -1,4 +1,8 @@
+hypothesis # seems to be required for numpy, without it the tests fail
+numpy
 pypng
 svgwrite
 tqdm
 scikit-image
+tensorflow-macos
+tqdm

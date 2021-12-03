@@ -1,6 +1,18 @@
 # classify-handwritten-characters
 Classify handwritten Chinese characters
 
+## Project Status/Revival Notes
+* Reviving this project is probably equivalent to a rewrite
+* Writing out the records still seems to work
+* The training is so out of date (roughly TF 1.3) that it needs a full rewrite for TF 2.7
+* The android part uses binaries that no longer exist, so will need to be rewritten
+* This would be a good exercise at refreshing my tensorflow knowledge, but it would not be a small project.
+* Complicating things, critical items for running the old code are unavailable (tensorflow 1.3, the android binaries)
+* I estimate 1-2 weeks to do this.
+* See https://www.tensorflow.org/guide/migrate
+* I'd also want to set up conda and learn a bit about that.
+
+
 ## Prerequisites
 * HWDB1.1 (1.1 million image samples. [info][3], [train.zip (1873 MB)][1], [test.zip (471 MB)][2])
 * OLHWDB1.1 (1.1 million stroke samples. [info][6], [train.zip (187 MB)][4], [test.zip (47 MB)][5])
@@ -8,12 +20,23 @@ Classify handwritten Chinese characters
 * Python 3
 * Python modules in requirements.txt
 
+## Setting up the python environment
+1. `brew install openblas` -- required for scikit-image to build correctly
+1. `brew install hdf5` -- required for installing tensorflow-macos
+1. `python3 -m venv env`
+2. `source env/bin/activate`
+3. `python3 -m pip install -r requirements.txt`
+
+## Quickstart with a pre-trained model
+1. Get the model from git lfs `$ git lfs fetch`
+2. Predict something with `$ ./gnt_predict models/model-stepN.ckpt png_image_sample`
+
 ## Creating the model
 1. Unzip the training and test sets
 2. $ ./convert_gnt_to_records.py unzipped_hwdb1.1_folder
 3. $ ./gnt_model
-4. $ ./gnt_predict data/model-stepN.ckpt png_image_sample
-5. $ ./write_pb_file data/model-stepN.ckpt output_dir
+4. $ ./gnt_predict models/model-stepN.ckpt png_image_sample
+5. $ ./write_pb_file models/model-stepN.ckpt output_dir
 
 ## Updating the android tensorflow library
 This repository comes prepackaged with the android tensorflow library. This might require updating in the future

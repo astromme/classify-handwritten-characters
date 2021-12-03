@@ -85,8 +85,8 @@ def write_tf_records():
         for key in label_keys:
             f.write((key + '\n').encode('utf-8'))
 
-    train_writer = tf.python_io.TFRecordWriter("hwdb1.1.train.tfrecords")
-    test_writer = tf.python_io.TFRecordWriter("hwdb1.1.test.tfrecords")
+    train_writer = tf.io.TFRecordWriter("hwdb1.1.train.tfrecords")
+    test_writer = tf.io.TFRecordWriter("hwdb1.1.test.tfrecords")
 
     def write_example(writer, bitmap, label):
         # construct the Example proto boject
