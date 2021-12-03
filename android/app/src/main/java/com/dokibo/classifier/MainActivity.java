@@ -104,6 +104,7 @@ public class MainActivity extends AppCompatActivity implements View.OnTouchListe
                     //makeButtonVisible();
                     Log.d(TAG, "Load Success");
                 } catch (final Exception e) {
+                    Log.d("TensorFlow", e.toString());
                     throw new RuntimeException("Error initializing TensorFlow!", e);
                 }
             }
