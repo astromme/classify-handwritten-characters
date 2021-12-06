@@ -1,6 +1,8 @@
 HWDB1.1tst_gnt
 .DS_Store
 *.tfrecords
+trainingdata/
+pngs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

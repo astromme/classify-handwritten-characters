@@ -6,3 +6,4 @@ tqdm
 scikit-image
 tensorflow-macos
 tqdm
+matplotlib
