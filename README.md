@@ -37,6 +37,9 @@ Note -- you shouldn't need to do this unless something has gone horribly wrong.
 
 Note that the model is saved (and overwritten) after every epoch.
 
+## Copying the new model into the android app
+1. `./update_android_app_model.sh`
+
 ## TODO
 - [x] Revive and update model for Tensorflow 2.7 (Dec 2021)
 - [ ] Make the new-style "-c.gnt" files work
