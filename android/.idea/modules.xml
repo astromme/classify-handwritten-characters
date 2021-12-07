@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/android.iml" filepath="$PROJECT_DIR$/.idea/modules/android.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/android.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/android.app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Dokibo_Character_Classification.iml" filepath="$PROJECT_DIR$/.idea/modules/Dokibo_Character_Classification.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/Dokibo_Character_Classification.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/Dokibo_Character_Classification.app.iml" />
     </modules>
   </component>
 </project>
