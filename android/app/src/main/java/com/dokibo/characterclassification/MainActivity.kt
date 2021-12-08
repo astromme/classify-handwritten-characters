@@ -12,6 +12,7 @@ import com.dokibo.characterclassification.ml.TrainedModel
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import java.io.InputStream
+import java.lang.Exception
 import java.lang.Float.min
 import java.nio.ByteBuffer
 import kotlin.streams.toList
@@ -39,6 +40,10 @@ fun resizedBitmapWithPadding(bitmap: Bitmap, newWidth: Int, newHeight: Int) : Bi
 
     return outputBitmap
 }
+
+private const val MODEL_IMAGE_WIDTH = 48
+private const val MODEL_IMAGE_HEIGHT = 48
+private const val NUM_CHANNELS = 3
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -83,14 +88,14 @@ class MainActivity : AppCompatActivity() {
         charactersIndex = ins.bufferedReader(Charsets.UTF_8).lines().toList()
 
 
-        byteBuffer = ByteBuffer.allocate(28 * 28 * Float.SIZE_BYTES)
+        byteBuffer = ByteBuffer.allocate(MODEL_IMAGE_WIDTH * MODEL_IMAGE_HEIGHT * NUM_CHANNELS * Float.SIZE_BYTES)
         model = TrainedModel.newInstance(applicationContext)
-        inputFeature0 = TensorBuffer.createFixedSize(intArrayOf(1, 28, 28, 1), DataType.FLOAT32)
+        inputFeature0 = TensorBuffer.createFixedSize(intArrayOf(1, MODEL_IMAGE_WIDTH, MODEL_IMAGE_HEIGHT, NUM_CHANNELS), DataType.FLOAT32)
 
     }
 
     fun runModelAndUpdateText(bitmap: Bitmap) {
-        val resizedBitmap = resizedBitmapWithPadding(bitmap, 28, 28)
+        val resizedBitmap = resizedBitmapWithPadding(bitmap, MODEL_IMAGE_WIDTH, MODEL_IMAGE_HEIGHT)
 
         for (y in 0 until resizedBitmap.height) {
             for (x in 0 until resizedBitmap.width) {
@@ -98,12 +103,24 @@ class MainActivity : AppCompatActivity() {
                 val grayscale = (Color.blue(color) + Color.red(color) + Color.green(color)) / 3
                 val floatGrayscaleInverted = 1 - grayscale.toFloat() / 255.0F
                 Log.d("Main", "y,x: $y,$x = $grayscale -> ${floatGrayscaleInverted}")
-                byteBuffer.putFloat(y * 28 + x, floatGrayscaleInverted)
+                if (NUM_CHANNELS == 1) {
+                    byteBuffer.putFloat(y * MODEL_IMAGE_WIDTH + x, floatGrayscaleInverted)
+                } else if (NUM_CHANNELS == 3) {
+                    byteBuffer.putFloat(y * (MODEL_IMAGE_WIDTH * 3) + (x * 3) + 0, floatGrayscaleInverted)
+                    byteBuffer.putFloat(y * (MODEL_IMAGE_WIDTH * 3) + (x * 3) + 1, floatGrayscaleInverted)
+                    byteBuffer.putFloat(y * (MODEL_IMAGE_WIDTH * 3) + (x * 3) + 2, floatGrayscaleInverted)
+                    if (y < 2) {
+                        Log.d("Main", "y: $y, x: $x, pos: ${y * (MODEL_IMAGE_WIDTH * 3) + (x * 3)}, $floatGrayscaleInverted")
+                    }
+                } else {
+                    throw Exception("unhandled number of channels")
+                }
             }
         }
 
         binding.imageView.setImageBitmap(resizedBitmap)
 
+        Log.d("Main", "inputFeature0: ${inputFeature0.buffer.capacity()}, byteBuffer: ${byteBuffer.capacity()}")
         // Creates inputs for reference.
         inputFeature0.loadBuffer(byteBuffer)
 
@@ -125,6 +142,8 @@ class MainActivity : AppCompatActivity() {
                 topN.sortBy { it.first }
             }
         }
+
+        Log.d("Main", topN.reversed().toString())
 
         var results = ""
         topN.reversed().forEachIndexed { index, pair ->

@@ -3,6 +3,7 @@ HWDB1.1tst_gnt
 *.tfrecords
 trainingdata/
 pngs/
+logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
