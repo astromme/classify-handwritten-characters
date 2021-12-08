@@ -147,7 +147,7 @@ train_ds = builder.as_dataset(split='Train', shuffle_files=False)
 # print(builder.info.features['label'].names)
 
 train_ds = train_ds.map(parse_tfds_record)
-# train_ds = train_ds.map(wrapped_apply_transforms)
+train_ds = train_ds.map(wrapped_apply_transforms)
 
 
 import matplotlib
@@ -183,7 +183,11 @@ hp = {
 }
 
 # Create an instance of the model
-model = CharacterRecognizerModel(**hp)
+if sys.argv[1] == '--resume':
+    print(f'resuming training of model')
+    model = tf.keras.models.load_model('trained_model.tf')
+else:
+    model = CharacterRecognizerModel(**hp)
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
